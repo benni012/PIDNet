@@ -9,10 +9,10 @@ WORKERS: 6
 PRINT_FREQ: 10
 
 DATASET:
-  DATASET: cityscapes
+  DATASET: loveda
   ROOT: data/
-  TEST_SET: 'list/cityscapes/val.lst'
-  TRAIN_SET: 'list/cityscapes/train.lst'
+  TEST_SET: 'list/loveda/val.lst'
+  TRAIN_SET: 'list/loveda/train.lst'
   NUM_CLASSES: 19
 MODEL:
   NAME: pidnet_small
