@@ -52,6 +52,7 @@ _C.DATASET.TEST_SET = 'list/cityscapes/val.lst'
 
 # training
 _C.TRAIN = CN()
+_C.TRAIN.SPEEDY_GONZALES = False
 _C.TRAIN.IMAGE_SIZE = [1024, 1024]  # width * height
 _C.TRAIN.BASE_SIZE = 2048
 _C.TRAIN.FLIP = True
@@ -88,6 +89,7 @@ _C.TEST.FLIP_TEST = False
 _C.TEST.MULTI_SCALE = False
 _C.TEST.JITTER = False
 _C.TEST.BLUR = False
+_C.TEST.SPEEDY_GONZALES = False
 
 _C.TEST.OUTPUT_INDEX = -1
 

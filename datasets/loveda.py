@@ -3,6 +3,8 @@
 # ------------------------------------------------------------------------------
 
 import os
+
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -23,8 +25,9 @@ class LoveDA(BaseDataset):
                  mean=[0.485, 0.456, 0.406],
                  std=[0.229, 0.224, 0.225],
                  bd_dilate_size=4,
-                 jitter=True,
-                 blur=True):
+                 jitter=False,
+                 blur=False,
+                 speedy_gonzales=False):
 
         super(LoveDA, self).__init__(ignore_label, base_size,
                                      crop_size, scale_factor, mean, std)
@@ -51,6 +54,11 @@ class LoveDA(BaseDataset):
 
         self.jitter = jitter
         self.blur = blur
+        self.speedy_gonzales = speedy_gonzales
+
+        if self.speedy_gonzales:
+            self.base_size //= 2
+            self.crop_size = (self.crop_size[0] // 2, self.crop_size[1] // 2)
 
     def read_files(self):
         files = []
@@ -90,6 +98,12 @@ class LoveDA(BaseDataset):
         color_map = Image.open(os.path.join(self.root, 'loveda', item["label"])).convert('RGB')
         color_map = np.array(color_map)
         label = self.color2label(color_map)
+
+        image = cv2.resize(image, (self.base_size, self.base_size),
+                           interpolation=cv2.INTER_LINEAR)
+        label = cv2.resize(label, (self.base_size, self.base_size),
+                            interpolation=cv2.INTER_NEAREST)
+
 
         image, label, edge = self.gen_sample(image, label,
                                              self.multi_scale, self.flip, edge_pad=False,

@@ -96,7 +96,10 @@ def main():
         flip=False,
         ignore_label=config.TRAIN.IGNORE_LABEL,
         base_size=config.TEST.BASE_SIZE,
-        crop_size=test_size)
+        crop_size=test_size,
+        blur=config.TEST.BLUR,
+        jitter=config.TEST.JITTER,
+        speedy_gonzales=config.TEST.SPEEDY_GONZALES)
 
     testloader = torch.utils.data.DataLoader(
         test_dataset,
@@ -132,7 +135,7 @@ def main():
 
             images.append((image[0].numpy().transpose(1, 2, 0), pred[0].numpy(), label[0].numpy()))
 
-        if index == 10:
+        if index == 15:
             break
 
 

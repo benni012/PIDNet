@@ -42,6 +42,8 @@ class BaseDataset(data.Dataset):
             image = image.astype(np.float32)[:, :, ::-1]
         else:
             image = image.astype(np.float32)
+
+        # scale to correct size
         image = image / 255.0
         image -= self.mean
         image /= self.std
@@ -127,7 +129,6 @@ class BaseDataset(data.Dataset):
 
         image = torch.tensor(image.copy()).float()
         image = image.permute(2, 0, 1)
-        print(image.shape)
 
         if is_color_jitter:
             if np.random.random() < 0.5:

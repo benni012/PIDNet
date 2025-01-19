@@ -93,7 +93,8 @@ def main():
                         crop_size=crop_size,
                         scale_factor=config.TRAIN.SCALE_FACTOR,
                         blur=config.TRAIN.BLUR,
-                        jitter=config.TRAIN.JITTER)
+                        jitter=config.TRAIN.JITTER,
+                        speedy_gonzales=config.TRAIN.SPEEDY_GONZALES)
 
     trainloader = torch.utils.data.DataLoader(
         train_dataset,
