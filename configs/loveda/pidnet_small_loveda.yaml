@@ -42,8 +42,8 @@ TRAIN:
   NESTEROV: false
   FLIP: true
   MULTI_SCALE: true
-  JITTER: true
-  BLUR: true
+  JITTER: false
+  BLUR: false
   IGNORE_LABEL: 0
   SCALE_FACTOR: 16
 TEST:
