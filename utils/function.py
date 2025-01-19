@@ -17,6 +17,91 @@ from utils.utils import get_confusion_matrix
 from utils.utils import adjust_learning_rate
 
 
+def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
+          num_iters, trainloader, optimizer, model, writer_dict, targetloader):
+    # Training
+    model.train()
+
+    batch_time = AverageMeter()
+    ave_loss = AverageMeter()
+    ave_acc = AverageMeter()
+    avg_sem_loss = AverageMeter()
+    avg_bce_loss = AverageMeter()
+    tic = time.time()
+    cur_iters = epoch * epoch_iters
+    writer = writer_dict['writer']
+    global_steps = writer_dict['train_global_steps']
+
+    for i_iter, batch in enumerate(trainloader, 0):
+        images, labels, bd_gts, _, _ = batch
+        images = images.cuda()
+        labels = labels.long().cuda()
+        bd_gts = bd_gts.float().cuda()
+
+        # get target data
+        try:
+            _, batch_target = next(targetloader)
+        except:
+            targetloader = iter(targetloader)
+            _, batch_target = next(targetloader)
+
+        images_target, _, _ = batch_target
+        output = model.model(images_target.cuda())
+        labels_target = output[:-1]
+        bd_target = output[-1]
+
+
+        # go over batch dim
+        images_mix, labels_mix = images_target.clone(), labels_target.clone()
+        bd_mix = bd_target.clone()
+        for i in range(images.size(0)):
+            # classmix target data, with half of the classes
+            classes = torch.unique(labels_target)
+            classes = classes[torch.randperm(len(classes))[:(len(classes)+1)//2]]
+
+            for c in classes:
+                mask = labels_target[i] == c
+                images_mix[i][mask] = images[i][mask]
+                labels_mix[i][mask] = labels[i][mask]
+                bd_mix[i][mask] = bd_gts[i][mask]
+
+
+        losses, _, acc, loss_list = model(images, labels, bd_gts)
+        mix_losses, _, mix_acc, mix_loss_list = model(images_mix, labels_mix, bd_mix)
+        loss = losses.mean() + mix_losses.mean()
+        acc = acc.mean()
+
+        model.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # measure elapsed time
+        batch_time.update(time.time() - tic)
+        tic = time.time()
+
+        # update average loss
+        ave_loss.update(loss.item())
+        ave_acc.update(acc.item())
+        avg_sem_loss.update(loss_list[0].mean().item())
+        avg_bce_loss.update(loss_list[1].mean().item())
+
+        lr = adjust_learning_rate(optimizer,
+                                  base_lr,
+                                  num_iters,
+                                  i_iter + cur_iters)
+
+        if i_iter % config.PRINT_FREQ == 0:
+            msg = 'Epoch: [{}/{}] Iter:[{}/{}], Time: {:.2f}, ' \
+                  'lr: {}, Loss: {:.6f}, Acc:{:.6f}, Semantic loss: {:.6f}, BCE loss: {:.6f}, SB loss: {:.6f}'.format(
+                epoch, num_epoch, i_iter, epoch_iters,
+                batch_time.average(), [x['lr'] for x in optimizer.param_groups], ave_loss.average(),
+                ave_acc.average(), avg_sem_loss.average(), avg_bce_loss.average(),
+                ave_loss.average() - avg_sem_loss.average() - avg_bce_loss.average())
+            logging.info(msg)
+
+    writer.add_scalar('train_loss', ave_loss.average(), global_steps)
+    writer_dict['train_global_steps'] = global_steps + 1
+
 
 def train(config, epoch, num_epoch, epoch_iters, base_lr,
           num_iters, trainloader, optimizer, model, writer_dict):

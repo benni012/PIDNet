@@ -27,7 +27,8 @@ class LoveDA(BaseDataset):
                  bd_dilate_size=4,
                  jitter=False,
                  blur=False,
-                 speedy_gonzales=False):
+                 speedy_gonzales=False,
+                 target=False):
 
         super(LoveDA, self).__init__(ignore_label, base_size,
                                      crop_size, scale_factor, mean, std)
@@ -55,6 +56,7 @@ class LoveDA(BaseDataset):
         self.jitter = jitter
         self.blur = blur
         self.speedy_gonzales = speedy_gonzales
+        self.target = target
 
         if self.speedy_gonzales:
             print("Speedy Gonzales Mode engaged")
@@ -90,27 +92,45 @@ class LoveDA(BaseDataset):
         return color_map.astype(np.uint8)
 
     def __getitem__(self, index):
-        item = self.files[index]
-        name = item["name"]
-        image = Image.open(os.path.join(self.root, 'loveda', item["img"])).convert('RGB')
-        image = np.array(image)
-        size = image.shape
+        if self.target:
+            item = self.files[index]
+            name = item["name"]
+            image = Image.open(os.path.join(self.root, 'loveda', item["img"])).convert('RGB')
+            image = np.array(image)
+            size = image.shape
 
-        color_map = Image.open(os.path.join(self.root, 'loveda', item["label"])).convert('RGB')
-        color_map = np.array(color_map)
-        label = self.color2label(color_map)
+            label = np.zeros_like(image)[..., 0]
 
-        image = cv2.resize(image, (self.base_size, self.base_size),
-                           interpolation=cv2.INTER_LINEAR)
-        label = cv2.resize(label, (self.base_size, self.base_size),
-                            interpolation=cv2.INTER_NEAREST)
+            image, _, _ = self.gen_sample(image, label,
+                                                 self.multi_scale, self.flip, edge_pad=False,
+                                                 edge_size=self.bd_dilate_size, city=False, is_color_jitter=self.jitter,
+                                                 is_gaussian_blur=self.blur)
+
+            return image.copy(), np.array(size), name
+        else:
+            item = self.files[index]
+            name = item["name"]
+            image = Image.open(os.path.join(self.root, 'loveda', item["img"])).convert('RGB')
+            image = np.array(image)
+            size = image.shape
+
+            color_map = Image.open(os.path.join(self.root, 'loveda', item["label"])).convert('RGB')
+            color_map = np.array(color_map)
+            label = self.color2label(color_map)
+
+            if self.speedy_gonzales:
+                image = cv2.resize(image, (self.base_size, self.base_size),
+                                   interpolation=cv2.INTER_LINEAR)
+                label = cv2.resize(label, (self.base_size, self.base_size),
+                                    interpolation=cv2.INTER_NEAREST)
 
 
-        image, label, edge = self.gen_sample(image, label,
-                                             self.multi_scale, self.flip, edge_pad=False,
-                                             edge_size=self.bd_dilate_size, city=False, is_color_jitter=self.jitter, is_gaussian_blur=self.blur)
+            image, label, edge = self.gen_sample(image, label,
+                                                 self.multi_scale, self.flip, edge_pad=False,
+                                                 edge_size=self.bd_dilate_size, city=False, is_color_jitter=self.jitter, is_gaussian_blur=self.blur)
 
-        return image.copy(), label.copy(), edge.copy(), np.array(size), name
+
+            return image.copy(), label.copy(), edge.copy(), np.array(size), name
 
     def single_scale_inference(self, config, model, image):
         pred = self.inference(config, model, image)

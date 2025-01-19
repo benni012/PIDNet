@@ -34,7 +34,7 @@ class FullModel(nn.Module):
     acc = acc_sum.float() / (pixel_sum.float() + 1e-10)
     return acc
 
-  def forward(self, inputs, labels, bd_gt, *args, **kwargs):
+  def forward(self, inputs, labels, bd_gt, also_output_bd_pls=False, *args, **kwargs):
     
     outputs = self.model(inputs, *args, **kwargs)
     
@@ -57,7 +57,10 @@ class FullModel(nn.Module):
         loss_sb = self.sem_loss([outputs[-2]], labels)
     loss = loss_s + loss_b + loss_sb
 
-    return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b]
+    if also_output_bd_pls:
+        return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b], outputs[-1]
+    else:
+        return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b]
 
 
 class AverageMeter(object):
