@@ -92,13 +92,13 @@ def main():
         root=config.DATASET.ROOT,
         list_path=config.DATASET.TEST_SET,
         num_classes=config.DATASET.NUM_CLASSES,
-        multi_scale=False,
-        flip=False,
+        multi_scale=True,
+        flip=True,
         ignore_label=config.TRAIN.IGNORE_LABEL,
         base_size=config.TEST.BASE_SIZE,
         crop_size=test_size,
-        blur=config.TEST.BLUR,
-        jitter=config.TEST.JITTER,
+        blur=True,
+        jitter=True,
         speedy_gonzales=config.TEST.SPEEDY_GONZALES)
 
     testloader = torch.utils.data.DataLoader(
