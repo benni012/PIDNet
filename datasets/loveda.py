@@ -57,6 +57,7 @@ class LoveDA(BaseDataset):
         self.speedy_gonzales = speedy_gonzales
 
         if self.speedy_gonzales:
+            print("Speedy Gonzales Mode engaged")
             self.base_size //= 2
             self.crop_size = (self.crop_size[0] // 2, self.crop_size[1] // 2)
 
