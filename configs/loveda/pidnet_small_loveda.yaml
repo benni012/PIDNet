@@ -53,7 +53,7 @@ TEST:
   BATCH_SIZE_PER_GPU: 6
   FLIP_TEST: false
   MULTI_SCALE: false
-  JITTER: true
-  BLUR: true
+  JITTER: false
+  BLUR: false
   MODEL_FILE: ''
   OUTPUT_INDEX: 1
