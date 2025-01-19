@@ -41,6 +41,8 @@ TRAIN:
   NESTEROV: false
   FLIP: true
   MULTI_SCALE: true
+  JITTER: true
+  BLUR: true
   IGNORE_LABEL: 0
   SCALE_FACTOR: 16
 TEST:
@@ -51,5 +53,7 @@ TEST:
   BATCH_SIZE_PER_GPU: 6
   FLIP_TEST: false
   MULTI_SCALE: false
+  JITTER: true
+  BLUR: true
   MODEL_FILE: ''
   OUTPUT_INDEX: 1
