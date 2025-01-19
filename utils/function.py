@@ -56,7 +56,7 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
         bd_mix = bd_target.clone()
         for i in range(images.size(0)):
             # classmix target data, with half of the classes
-            classes = torch.unique(labels_target)
+            classes = torch.unique(labels)
             classes = classes[torch.randperm(len(classes))[:(len(classes)+1)//2]]
 
             for c in classes:
