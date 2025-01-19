@@ -89,7 +89,9 @@ def main():
                         flip=False,
                         ignore_label=config.TRAIN.IGNORE_LABEL,
                         base_size=config.TEST.BASE_SIZE,
-                        crop_size=test_size)
+                        crop_size=test_size,
+                        blur=config.TEST.BLUR,
+                        jitter=config.TEST.JITTER)
 
     testloader = torch.utils.data.DataLoader(
         test_dataset,

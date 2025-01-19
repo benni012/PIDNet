@@ -5,11 +5,15 @@ import cv2
 import numpy as np
 import random
 
+import torch
+import torchvision
+
 from torch.nn import functional as F
 from torch.utils import data
 
 y_k_size = 6
 x_k_size = 6
+
 
 class BaseDataset(data.Dataset):
     def __init__(self,
@@ -104,7 +108,7 @@ class BaseDataset(data.Dataset):
 
 
     def gen_sample(self, image, label,
-                   multi_scale=True, is_flip=True, edge_pad=True, edge_size=4, city=True):
+                   multi_scale=True, is_flip=True, edge_pad=True, edge_size=4, city=True, is_color_jitter=False, is_gaussian_blur=False):
         
         edge = cv2.Canny(label, 0.1, 0.2)
         kernel = np.ones((edge_size, edge_size), np.uint8)
@@ -120,9 +124,58 @@ class BaseDataset(data.Dataset):
 
         image = self.input_transform(image, city=city)
         label = self.label_transform(label)
-        
 
-        image = image.transpose((2, 0, 1))
+        image = torch.tensor(image.copy()).float()
+        image = image.permute(2, 0, 1)
+        print(image.shape)
+
+        if is_color_jitter:
+            if np.random.random() < 0.5:
+                # provided colorjitter of course does not work
+                # increase saturation mathematically
+
+                def saturate(image, s):
+                    rwgt = 0.3086
+                    gwgt = 0.6094
+                    bwgt = 0.0820
+                    a = (1.0 - s) * rwgt + s
+                    b = (1.0 - s) * rwgt
+                    c = (1.0 - s) * rwgt
+                    d = (1.0 - s) * gwgt
+                    e = (1.0 - s) * gwgt + s
+                    f = (1.0 - s) * gwgt
+                    g = (1.0 - s) * bwgt
+                    h = (1.0 - s) * bwgt
+                    i = (1.0 - s) * bwgt + s
+                    mat = np.array([
+                        [a, b, c],
+                        [d, e, f],
+                        [g, h, i]
+                    ])
+                    # image is 3 x 1024 x 1024
+                    image = image.permute(1, 2, 0)
+                    image = image.numpy()
+                    image = np.dot(image, mat)
+                    image = torch.tensor(image).float()
+                    image = image.permute(2, 0, 1)
+                    return image
+
+                # between 0.5 and 1.5
+                image = saturate(image, 0.5 + np.random.random())
+
+
+
+
+        if is_gaussian_blur:
+            if np.random.random() < 0.5:
+                # picture is 1024 x 1024, so chose sane sigma
+                blur = torchvision.transforms.GaussianBlur(
+                    kernel_size=5,
+                    sigma=(0.1, 2.0)
+                )
+                image = blur(image)
+
+        image = np.array(image)
 
         if is_flip:
             flip = np.random.choice(2) * 2 - 1

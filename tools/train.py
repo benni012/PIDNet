@@ -34,7 +34,7 @@ def parse_args():
                         help='experiment configure file name',
                         default="configs/cityscapes/pidnet_small_cityscapes.yaml",
                         type=str)
-    parser.add_argument('--seed', type=int, default=304)    
+    parser.add_argument('--seed', type=int, default=304)
     parser.add_argument('opts',
                         help="Modify config options using the command-line",
                         default=None,
@@ -91,7 +91,9 @@ def main():
                         ignore_label=config.TRAIN.IGNORE_LABEL,
                         base_size=config.TRAIN.BASE_SIZE,
                         crop_size=crop_size,
-                        scale_factor=config.TRAIN.SCALE_FACTOR)
+                        scale_factor=config.TRAIN.SCALE_FACTOR,
+                        blur=config.TRAIN.BLUR,
+                        jitter=config.TRAIN.JITTER)
 
     trainloader = torch.utils.data.DataLoader(
         train_dataset,

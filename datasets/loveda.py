@@ -22,7 +22,9 @@ class LoveDA(BaseDataset):
                  scale_factor=16,
                  mean=[0.485, 0.456, 0.406],
                  std=[0.229, 0.224, 0.225],
-                 bd_dilate_size=4):
+                 bd_dilate_size=4,
+                 jitter=True,
+                 blur=True):
 
         super(LoveDA, self).__init__(ignore_label, base_size,
                                      crop_size, scale_factor, mean, std)
@@ -46,6 +48,9 @@ class LoveDA(BaseDataset):
         self.class_weights = None
 
         self.bd_dilate_size = bd_dilate_size
+
+        self.jitter = jitter
+        self.blur = blur
 
     def read_files(self):
         files = []
@@ -88,7 +93,7 @@ class LoveDA(BaseDataset):
 
         image, label, edge = self.gen_sample(image, label,
                                              self.multi_scale, self.flip, edge_pad=False,
-                                             edge_size=self.bd_dilate_size, city=False)
+                                             edge_size=self.bd_dilate_size, city=False, is_color_jitter=self.jitter, is_gaussian_blur=self.blur)
 
         return image.copy(), label.copy(), edge.copy(), np.array(size), name
 
