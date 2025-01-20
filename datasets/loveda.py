@@ -101,6 +101,12 @@ class LoveDA(BaseDataset):
 
             label = np.zeros_like(image)[..., 0]
 
+            if self.speedy_gonzales:
+                image = cv2.resize(image, (self.base_size, self.base_size),
+                                   interpolation=cv2.INTER_LINEAR)
+                label = cv2.resize(label, (self.base_size, self.base_size),
+                                   interpolation=cv2.INTER_NEAREST)
+
             image, _, _ = self.gen_sample(image, label,
                                                  self.multi_scale, self.flip, edge_pad=False,
                                                  edge_size=self.bd_dilate_size, city=False, is_color_jitter=self.jitter,
