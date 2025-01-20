@@ -79,6 +79,7 @@ def main():
 
     imgnet = 'imagenet' in config.MODEL.PRETRAINED
     model = models.pidnet.get_seg_model(config, imgnet_pretrained=imgnet)
+    model = model.cuda()
  
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU * len(gpus)
     # prepare data
