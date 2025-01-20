@@ -24,7 +24,7 @@ import datasets
 from configs import config
 from configs import update_config
 from utils.criterion import CrossEntropy, OhemCrossEntropy, BondaryLoss
-from utils.function import train, validate
+from utils.function import train, validate, train_dacs
 from utils.utils import create_logger, FullModel
 
 
@@ -73,11 +73,12 @@ def main():
     cudnn.deterministic = config.CUDNN.DETERMINISTIC
     cudnn.enabled = config.CUDNN.ENABLED
     gpus = list(config.GPUS)
-    if torch.cuda.device_count() != len(gpus):
-        print("The gpu numbers do not match!")
-        return 0
-    
-    model = models.pidnet.get_seg_model(config, False)
+    # if torch.cuda.device_count() != len(gpus):
+    #     print("The gpu numbers do not match!")
+    #     return 0
+
+    imgnet = 'imagenet' in config.MODEL.PRETRAINED
+    model = models.pidnet.get_seg_model(config, imgnet_pretrained=imgnet)
  
     batch_size = config.TRAIN.BATCH_SIZE_PER_GPU * len(gpus)
     # prepare data
@@ -100,7 +101,7 @@ def main():
                         root=config.DATASET.ROOT,
                         list_path=config.DATASET.TARGET_SET,
                         num_classes=config.DATASET.NUM_CLASSES,
-                        multi_scale=config.TRAIN.MULTI_SCALE,
+                        multi_scale=False, # TODO
                         flip=config.TRAIN.FLIP,
                         ignore_label=config.TRAIN.IGNORE_LABEL,
                         base_size=config.TRAIN.BASE_SIZE,
@@ -119,7 +120,7 @@ def main():
         pin_memory=False,
         drop_last=True)
 
-    trainloader_target = torch.utils.data.DataLoader(
+    targetloader = torch.utils.data.DataLoader(
         target_dataset,
         batch_size=batch_size,
         shuffle=config.TRAIN.SHUFFLE,
@@ -159,7 +160,7 @@ def main():
     bd_criterion = BondaryLoss()
     
     model = FullModel(model, sem_criterion, bd_criterion)
-    model = nn.DataParallel(model, device_ids=gpus).cuda()
+    model = nn.DataParallel(model, device_ids=gpus)
 
     # optimizer
     if config.TRAIN.OPTIMIZER == 'sgd':
@@ -202,9 +203,9 @@ def main():
         if current_trainloader.sampler is not None and hasattr(current_trainloader.sampler, 'set_epoch'):
             current_trainloader.sampler.set_epoch(epoch)
 
-        train(config, epoch, config.TRAIN.END_EPOCH, 
+        train_dacs(config, epoch, config.TRAIN.END_EPOCH,
                   epoch_iters, config.TRAIN.LR, num_iters,
-                  trainloader, optimizer, model, writer_dict)
+                  trainloader, optimizer, model, writer_dict, targetloader)
 
         if flag_rm == 1 or (epoch % 5 == 0 and epoch < real_end - 100) or (epoch >= real_end - 100):
             valid_loss, mean_IoU, IoU_array = validate(config, 

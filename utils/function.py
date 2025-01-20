@@ -40,37 +40,87 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
 
         # get target data
         try:
-            _, batch_target = next(targetloader)
+            batch_target = next(targetloader)
         except:
             targetloader = iter(targetloader)
-            _, batch_target = next(targetloader)
+            batch_target = next(targetloader)
 
         images_target, _, _ = batch_target
-        output = model.model(images_target.cuda())
-        labels_target = output[:-1]
-        bd_target = output[-1]
-
+        outputs = model.module.model(images_target)
+        h, w = labels.size(1), labels.size(2)
+        for i in range(len(outputs)):
+            outputs[i] = F.interpolate(outputs[i], size=( h,w), mode='bilinear', align_corners=config.MODEL.ALIGN_CORNERS)
+        labels_target_logits = outputs[1]
+        labels_target_prob = F.softmax(labels_target_logits, dim=1)
+        max_probs, labels_target = torch.max(labels_target_prob, dim=1)
+        bd_target = outputs[2][:,0]
 
         # go over batch dim
         images_mix, labels_mix = images_target.clone().detach(), labels_target.clone().detach()
-        bd_mix = bd_target.clone()
-        for i in range(images.size(0)):
-            # classmix target data, with half of the classes
-            classes = torch.unique(labels)
-            classes = classes[torch.randperm(len(classes))[:(len(classes)+1)//2]]
+        bd_mix = bd_target.clone().detach()
 
-            # confidence
+        # Ottieni tutte le classi per ogni immagine del batch
+        all_classes = [torch.unique(lbl, sorted=True) for lbl in labels]
+        all_classes = [cls[1:] if cls[0] == config.TRAIN.IGNORE_LABEL else cls for cls in all_classes]
 
+        # Seleziona metà delle classi in modo casuale per ogni immagine
+        selected_classes = [cls[torch.randperm(len(cls))[:(len(cls) + 1) // 2]] for cls in all_classes]
+
+        # Inizializza una maschera globale per tutto il batch
+        batch_mask = torch.zeros_like(labels, dtype=torch.bool)
+
+        # Crea la maschera cumulativa per tutte le immagini
+        for i, classes in enumerate(selected_classes):
             for c in classes:
-                mask = labels_target[i] == c
-                images_mix[i][mask] = images[i][mask]
-                labels_mix[i][mask] = labels[i][mask]
-                bd_mix[i][mask] = bd_gts[i][mask]
+                batch_mask[i] |= labels[i] == c
 
+        # Applica la maschera su tutto il batch
+        images_mix = torch.where(batch_mask.unsqueeze(1), images, images_mix)
+        labels_mix = torch.where(batch_mask, labels, labels_mix)
+        bd_mix = torch.where(batch_mask, bd_gts, bd_mix)
 
+        # import matplotlib.pyplot as plt
+        # import matplotlib
+        #
+        # for b in range(images.size(0)):
+        #     fig, axes = plt.subplots(2, 3, figsize=(12, 8))
+        #
+        #     axes[0, 0].imshow(matplotlib.colors.Normalize(clip=False)(images[b].permute(1, 2, 0).cpu().numpy()))
+        #     axes[0, 0].set_title("Original Image")
+        #     axes[0, 0].axis("off")
+        #
+        #     axes[0, 1].imshow(matplotlib.colors.Normalize(clip=False)(images_target[b].permute(1, 2, 0).cpu().numpy()))
+        #     axes[0, 1].set_title("Target Image")
+        #     axes[0, 1].axis("off")
+        #
+        #     axes[0, 2].imshow(matplotlib.colors.Normalize(clip=False)(images_mix[b].permute(1, 2, 0).cpu().numpy()))
+        #     axes[0, 2].set_title("Mixed Image")
+        #     axes[0, 2].axis("off")
+        #
+        #     axes[1, 0].imshow(labels[b].cpu().numpy(), cmap="gray", vmin=0, vmax=7)
+        #     axes[1, 0].set_title("Original Mask")
+        #     axes[1, 0].axis("off")
+        #
+        #     axes[1, 1].imshow(labels_target[b].cpu().numpy(), cmap="gray", vmin=0, vmax=7)
+        #     axes[1, 1].set_title("Target Mask")
+        #     axes[1, 1].axis("off")
+        #
+        #     axes[1, 2].imshow(labels_mix[b].cpu().numpy(), cmap="gray", vmin=0, vmax=7)
+        #     axes[1, 2].set_title("Mixed Mask")
+        #     axes[1, 2].axis("off")
+        #
+        #     # Aggiungi spazio tra i subplot
+        #     plt.tight_layout()
+        #
+        #     # Mostra la figura
+        #     plt.show()
+
+        # TODO other confidence
+        lamb = torch.sum(max_probs.ge(0.968).long() == 1, dim=(1,2)) / (max_probs.size(1) * max_probs.size(2))
+        print(lamb)
         losses, _, acc, loss_list = model(images, labels, bd_gts)
         mix_losses, _, mix_acc, mix_loss_list = model(images_mix, labels_mix, bd_mix)
-        loss = losses.mean() + mix_losses.mean()
+        loss = losses.mean() + (mix_losses[0].mean(dim=(1,2))*lamb).mean()
         acc = acc.mean()
 
         model.zero_grad()
