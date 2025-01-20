@@ -46,6 +46,7 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
             batch_target = next(targetloader)
 
         images_target, _, _ = batch_target
+        images_target = images_target.cuda()
         outputs = model.module.model(images_target)
         h, w = labels.size(1), labels.size(2)
         for i in range(len(outputs)):
@@ -117,7 +118,6 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
 
         # TODO other confidence
         lamb = torch.sum(max_probs.ge(0.968).long() == 1, dim=(1,2)) / (max_probs.size(1) * max_probs.size(2))
-        print(lamb)
         losses, _, acc, loss_list = model(images, labels, bd_gts)
         mix_losses, _, mix_acc, mix_loss_list = model(images_mix, labels_mix, bd_mix)
         loss = losses.mean() + (mix_losses[0].mean(dim=(1,2))*lamb).mean()
@@ -221,9 +221,9 @@ def validate(config, testloader, model, writer_dict):
         for idx, batch in enumerate(testloader):
             image, label, bd_gts, _, _ = batch
             size = label.size()
-            image = image.cuda()
-            label = label.long().cuda()
-            bd_gts = bd_gts.float().cuda()
+            image = image
+            label = label.long()
+            bd_gts = bd_gts.float()
 
             losses, pred, _, _ = model(image, label, bd_gts)
             if not isinstance(pred, (list, tuple)):
@@ -273,7 +273,7 @@ def testval(config, test_dataset, testloader, model,
         for index, batch in enumerate(tqdm(testloader)):
             image, label, _, _, name = batch
             size = label.size()
-            pred = test_dataset.single_scale_inference(config, model, image.cuda())
+            pred = test_dataset.single_scale_inference(config, model, image)
 
             if pred.size()[-2] != size[-2] or pred.size()[-1] != size[-1]:
                 pred = F.interpolate(
@@ -324,7 +324,7 @@ def test(config, test_dataset, testloader, model,
             pred = test_dataset.single_scale_inference(
                 config,
                 model,
-                image.cuda())
+                image)
 
             if pred.size()[-2] != size[0] or pred.size()[-1] != size[1]:
                 pred = F.interpolate(
