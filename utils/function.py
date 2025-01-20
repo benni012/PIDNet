@@ -59,6 +59,9 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
             classes = torch.unique(labels)
             classes = classes[torch.randperm(len(classes))[:(len(classes)+1)//2]]
 
+            # disconnect y_m
+            # confidence
+
             for c in classes:
                 mask = labels_target[i] == c
                 images_mix[i][mask] = images[i][mask]
