@@ -52,14 +52,13 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
 
 
         # go over batch dim
-        images_mix, labels_mix = images_target.clone(), labels_target.clone()
+        images_mix, labels_mix = images_target.clone().detach(), labels_target.clone().detach()
         bd_mix = bd_target.clone()
         for i in range(images.size(0)):
             # classmix target data, with half of the classes
             classes = torch.unique(labels)
             classes = classes[torch.randperm(len(classes))[:(len(classes)+1)//2]]
 
-            # disconnect y_m
             # confidence
 
             for c in classes:
