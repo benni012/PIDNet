@@ -18,7 +18,7 @@ from utils.utils import adjust_learning_rate
 
 
 def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
-          num_iters, trainloader, optimizer, model, writer_dict, targetloader):
+          num_iters, trainloader, optimizer, model, writer_dict, targetloader, target_set):
     # Training
     model.train()
 
@@ -31,6 +31,7 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
     cur_iters = epoch * epoch_iters
     writer = writer_dict['writer']
     global_steps = writer_dict['train_global_steps']
+    targetloader_iter = iter(targetloader)
 
     for i_iter, batch in enumerate(trainloader, 0):
         images, labels, bd_gts, _, _ = batch
@@ -40,10 +41,10 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
 
         # get target data
         try:
-            batch_target = next(targetloader)
+            batch_target = next(targetloader_iter)
         except:
-            targetloader = iter(targetloader)
-            batch_target = next(targetloader)
+            targetloader_iter = iter(targetloader)
+            batch_target = next(targetloader_iter)
 
         images_target, _, _ = batch_target
         images_target = images_target.cuda()
