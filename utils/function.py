@@ -18,7 +18,7 @@ from utils.utils import adjust_learning_rate
 
 
 def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
-          num_iters, trainloader, optimizer, model, writer_dict, targetloader, target_set):
+          num_iters, trainloader, optimizer, model, writer_dict, targetloader):
     # Training
     model.train()
 
