@@ -83,7 +83,9 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
         loss_adv_src = F.binary_cross_entropy_with_logits(pred_src_adv, torch.zeros_like(pred_src_adv))
         loss_adv_tgt = F.binary_cross_entropy_with_logits(pred_tgt_adv, torch.ones_like(pred_tgt_adv))
 
-        print("Discriminator loss: " + loss_adv_src.item() + loss_adv_tgt.item())
+        # print("Discriminator loss: " + loss_adv_src.item() + loss_adv_tgt.item())
+        print(f"Discriminator loss: {loss_adv_src.item() + loss_adv_tgt.item()}")
+
 
         # losses, _, acc, loss_list = model(images, labels, bd_gts)
         losses, _, acc, loss_list = model.module.get_loss(outputs_src, labels, bd_gts)
