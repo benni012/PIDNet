@@ -59,17 +59,17 @@ class FullModel(nn.Module):
                 outputs[i] = F.interpolate(outputs[i], size=(
                     h, w), mode='bilinear', align_corners=config.MODEL.ALIGN_CORNERS)
 
-                acc  = self.pixel_acc(outputs[-2], labels)
-                loss_s = self.sem_loss(outputs[:-1], labels)
-                loss_b = self.bd_loss(outputs[-1], bd_gt)
+        acc  = self.pixel_acc(outputs[-2], labels)
+        loss_s = self.sem_loss(outputs[:-1], labels)
+        loss_b = self.bd_loss(outputs[-1], bd_gt)
 
-                filler = torch.ones_like(labels) * config.TRAIN.IGNORE_LABEL
-                try:
-                    bd_label = torch.where(torch.sigmoid(outputs[-1][:, 0, :, :]) > 0.7, labels, filler)
-                    loss_sb = self.sem_loss([outputs[-2]], bd_label)
-                except:
-                    loss_sb = self.sem_loss([outputs[-2]], labels)
-                loss = loss_s + loss_b + loss_sb
+        filler = torch.ones_like(labels) * config.TRAIN.IGNORE_LABEL
+        try:
+            bd_label = torch.where(torch.sigmoid(outputs[-1][:, 0, :, :]) > 0.7, labels, filler)
+            loss_sb = self.sem_loss([outputs[-2]], bd_label)
+        except:
+            loss_sb = self.sem_loss([outputs[-2]], labels)
+        loss = loss_s + loss_b + loss_sb
 
         return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b]
 
