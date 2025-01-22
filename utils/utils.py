@@ -34,10 +34,25 @@ class FullModel(nn.Module):
     acc = acc_sum.float() / (pixel_sum.float() + 1e-10)
     return acc
 
-  def forward(self, inputs, labels, bd_gt, also_output_bd_pls=False, *args, **kwargs):
-    
+  def get_loss(self, outputs, labels, bd_gt, *args, **kwargs):
+    acc = self.pixel_acc(outputs[-2], labels)
+    loss_s = self.sem_loss(outputs[:-1], labels)
+    loss_b = self.bd_loss(outputs[-1], bd_gt)
+
+    filler = torch.ones_like(labels) * config.TRAIN.IGNORE_LABEL
+    try:
+      bd_label = torch.where(torch.sigmoid(outputs[-1][:, 0, :, :]) > 0.7, labels, filler)
+      loss_sb = self.sem_loss([outputs[-2]], bd_label)
+    except:
+      loss_sb = self.sem_loss([outputs[-2]], labels)
+    loss = loss_s + loss_b + loss_sb
+
+    return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b]
+
+def forward(self, inputs, labels, bd_gt, *args, **kwargs):
+
     outputs = self.model(inputs, *args, **kwargs)
-    
+
     h, w = labels.size(1), labels.size(2)
     ph, pw = outputs[0].size(2), outputs[0].size(3)
     if ph != h or pw != w:
@@ -57,10 +72,7 @@ class FullModel(nn.Module):
         loss_sb = self.sem_loss([outputs[-2]], labels)
     loss = loss_s + loss_b + loss_sb
 
-    if also_output_bd_pls:
-        return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b], outputs[-1]
-    else:
-        return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b]
+    return torch.unsqueeze(loss,0), outputs[:-1], acc, [loss_s, loss_b]
 
 
 class AverageMeter(object):

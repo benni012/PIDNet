@@ -16,6 +16,135 @@ from utils.utils import AverageMeter
 from utils.utils import get_confusion_matrix
 from utils.utils import adjust_learning_rate
 
+def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
+               num_iters, trainloader, optimizer, model, writer_dict, targetloader, optimizer_dis, model_dis):
+    # Training
+    model.train()
+
+    batch_time = AverageMeter()
+    ave_loss = AverageMeter()
+    ave_acc = AverageMeter()
+    avg_sem_loss = AverageMeter()
+    avg_bce_loss = AverageMeter()
+    tic = time.time()
+    cur_iters = epoch * epoch_iters
+    writer = writer_dict['writer']
+    global_steps = writer_dict['train_global_steps']
+    targetloader_iter = iter(targetloader)
+
+    for i_iter, batch in enumerate(trainloader, 0):
+        images, labels, bd_gts, _, _ = batch
+        images = images.cuda()
+        labels = labels.long().cuda()
+        bd_gts = bd_gts.float().cuda()
+
+        # get target data
+        try:
+            batch_target = next(targetloader_iter)
+        except:
+            targetloader_iter = iter(targetloader)
+            batch_target = next(targetloader_iter)
+
+        images_target, _, _ = batch_target
+        images_target = images_target.cuda()
+
+        # generator (don't accumulate gradients for discriminator)
+        # - get source and target predictions
+        # - loss = seg_loss (src) + adv_loss (src + target)
+        # discriminator (accumulate)
+        # - get source and target predictions
+        # - loss = -adv_loss (src + target)
+
+        def get_pred(model, images):
+            outputs = model.module.model(images)
+            h, w = labels.size(1), labels.size(2)
+            for i in range(len(outputs)):
+                outputs[i] = F.interpolate(outputs[i], size=( h,w), mode='bilinear', align_corners=config.MODEL.ALIGN_CORNERS)
+            labels_logits = outputs[1]
+            # labels_prob = F.softmax(labels_logits, dim=1)
+            # max_probs, labels = torch.max(labels_prob, dim=1)
+            bd = outputs[2][:,0]
+            return labels_logits, bd, outputs
+
+        # GENERATOR PHASE
+        # disable grad for discriminator
+        for param in model_dis.parameters():
+            param.requires_grad = False
+
+        # get source and target predictions
+        pred_src, _, outputs_src = get_pred(model, images)
+        pred_tgt, _, _ = get_pred(model, images_target)
+
+        # discriminate
+        pred_src_adv = model_dis(pred_src)
+        pred_tgt_adv = model_dis(pred_tgt)
+
+        # loss = seg_loss (src) + adv_loss (src + target)
+        loss_adv_src = F.binary_cross_entropy_with_logits(pred_src_adv, torch.zeros_like(pred_src_adv))
+        loss_adv_tgt = F.binary_cross_entropy_with_logits(pred_tgt_adv, torch.ones_like(pred_tgt_adv))
+
+        print(loss_adv_src, loss_adv_tgt)
+
+        # losses, _, acc, loss_list = model(images, labels, bd_gts)
+        losses, _, acc, loss_list = model.module.get_loss(outputs_src, labels, bd_gts)
+        lamb = 0.001
+        loss = losses.mean() - lamb * (loss_adv_src + loss_adv_tgt)
+        acc = acc.mean()
+
+        model.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # DISCRIMINATOR PHASE
+        # enable grad for discriminator
+        for param in model_dis.parameters():
+            param.requires_grad = True
+
+        # get source and target predictions
+        pred_src, _, _ = get_pred(model, images)
+        pred_tgt, _, _ = get_pred(model, images_target)
+
+        # discriminate
+        pred_src_adv = model_dis(pred_src)
+        pred_tgt_adv = model_dis(pred_tgt)
+
+        # loss = -adv_loss (src + target)
+        loss_adv_src = F.binary_cross_entropy_with_logits(pred_src_adv, torch.zeros_like(pred_src_adv))
+        loss_adv_tgt = F.binary_cross_entropy_with_logits(pred_tgt_adv, torch.ones_like(pred_tgt_adv))
+        loss_dis = loss_adv_src + loss_adv_tgt
+
+        model_dis.zero_grad()
+        loss_dis.backward()
+        optimizer_dis.step()
+
+
+        # measure elapsed time
+        batch_time.update(time.time() - tic)
+        tic = time.time()
+
+        # update average loss
+        ave_loss.update(loss.item())
+        ave_acc.update(acc.item())
+        avg_sem_loss.update(loss_list[0].mean().item())
+        avg_bce_loss.update(loss_list[1].mean().item())
+
+        lr = adjust_learning_rate(optimizer,
+                                  base_lr,
+                                  num_iters,
+                                  i_iter + cur_iters)
+
+        if i_iter % config.PRINT_FREQ == 0:
+            msg = 'Epoch: [{}/{}] Iter:[{}/{}], Time: {:.2f}, ' \
+                  'lr: {}, Loss: {:.6f}, Acc:{:.6f}, Semantic loss: {:.6f}, BCE loss: {:.6f}, SB loss: {:.6f}'.format(
+                epoch, num_epoch, i_iter, epoch_iters,
+                batch_time.average(), [x['lr'] for x in optimizer.param_groups], ave_loss.average(),
+                ave_acc.average(), avg_sem_loss.average(), avg_bce_loss.average(),
+                ave_loss.average() - avg_sem_loss.average() - avg_bce_loss.average())
+            logging.info(msg)
+
+    writer.add_scalar('train_loss', ave_loss.average(), global_steps)
+    writer_dict['train_global_steps'] = global_steps + 1
+
 
 def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
           num_iters, trainloader, optimizer, model, writer_dict, targetloader):
@@ -121,6 +250,7 @@ def train_dacs(config, epoch, num_epoch, epoch_iters, base_lr,
         lamb = torch.sum(max_probs.ge(0.968).long() == 1, dim=(1,2)) / (max_probs.size(1) * max_probs.size(2))
         losses, _, acc, loss_list = model(images, labels, bd_gts)
         mix_losses, _, mix_acc, mix_loss_list = model(images_mix, labels_mix, bd_mix)
+        print(mix_losses.shape)
         loss = losses.mean() + (mix_losses[0].mean(dim=(1,2))*lamb).mean()
         acc = acc.mean()
 
