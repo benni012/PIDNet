@@ -26,6 +26,7 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
     ave_acc = AverageMeter()
     avg_sem_loss = AverageMeter()
     avg_bce_loss = AverageMeter()
+    avg_dis_loss = AverageMeter()
     tic = time.time()
     cur_iters = epoch * epoch_iters
     writer = writer_dict['writer']
@@ -80,8 +81,8 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
         pred_tgt_adv = model_dis(pred_tgt)
 
         # loss = seg_loss (src) + adv_loss (src + target)
-        loss_adv_src = F.binary_cross_entropy_with_logits(pred_src_adv, torch.zeros_like(pred_src_adv))
-        loss_adv_tgt = F.binary_cross_entropy_with_logits(pred_tgt_adv, torch.ones_like(pred_tgt_adv))
+        loss_adv_src = F.binary_cross_entropy_with_logits(pred_src_adv, torch.ones_like(pred_src_adv))
+        loss_adv_tgt = F.binary_cross_entropy_with_logits(pred_tgt_adv, torch.zeros_like(pred_tgt_adv))
 
         # print("Discriminator loss: " + loss_adv_src.item() + loss_adv_tgt.item())
         print(f"Discriminator loss: {loss_adv_src.item() + loss_adv_tgt.item()}")
@@ -90,7 +91,7 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
         # losses, _, acc, loss_list = model(images, labels, bd_gts)
         losses, _, acc, loss_list = model.module.get_loss(outputs_src, labels, bd_gts)
         lamb = 0.001
-        loss = losses.mean() - lamb * (loss_adv_src + loss_adv_tgt)
+        loss = losses.mean() + lamb * (loss_adv_src + loss_adv_tgt)
         acc = acc.mean()
 
         model.zero_grad()
@@ -129,6 +130,7 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
         ave_acc.update(acc.item())
         avg_sem_loss.update(loss_list[0].mean().item())
         avg_bce_loss.update(loss_list[1].mean().item())
+        avg_dis_loss.update(loss_dis.item())
 
         lr = adjust_learning_rate(optimizer,
                                   base_lr,
@@ -137,11 +139,11 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
 
         if i_iter % config.PRINT_FREQ == 0:
             msg = 'Epoch: [{}/{}] Iter:[{}/{}], Time: {:.2f}, ' \
-                  'lr: {}, Loss: {:.6f}, Acc:{:.6f}, Semantic loss: {:.6f}, BCE loss: {:.6f}, SB loss: {:.6f}'.format(
+                  'lr: {}, Loss: {:.6f}, Acc:{:.6f}, Semantic loss: {:.6f}, BCE loss: {:.6f}, SB loss: {:.6f}, Discriminator loss: {:.6f}'.format(
                 epoch, num_epoch, i_iter, epoch_iters,
                 batch_time.average(), [x['lr'] for x in optimizer.param_groups], ave_loss.average(),
                 ave_acc.average(), avg_sem_loss.average(), avg_bce_loss.average(),
-                ave_loss.average() - avg_sem_loss.average() - avg_bce_loss.average())
+                ave_loss.average() - avg_sem_loss.average() - avg_bce_loss.average(), avg_dis_loss.average())
             logging.info(msg)
 
     writer.add_scalar('train_loss', ave_loss.average(), global_steps)
