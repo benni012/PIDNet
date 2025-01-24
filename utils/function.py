@@ -57,7 +57,9 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
         # - loss = -adv_loss (src + target)
 
         def get_pred(model, images):
-            outputs = model.module.model(images)
+            outputs = model.module.model(images, intermediate_output=True)
+            inter = outputs[-1]
+            outputs = outputs[:-1]
             h, w = labels.size(1), labels.size(2)
             for i in range(len(outputs)):
                 outputs[i] = F.interpolate(outputs[i], size=( h,w), mode='bilinear', align_corners=config.MODEL.ALIGN_CORNERS)
@@ -65,7 +67,7 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
             # labels_prob = F.softmax(labels_logits, dim=1)
             # max_probs, labels = torch.max(labels_prob, dim=1)
             bd = outputs[2][:,0]
-            return labels_logits, bd, outputs
+            return labels_logits, bd, outputs, inter
 
         # GENERATOR PHASE
         # disable grad for discriminator
@@ -73,8 +75,8 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
             param.requires_grad = False
 
         # get source and target predictions
-        pred_src, _, outputs_src = get_pred(model, images)
-        pred_tgt, _, _ = get_pred(model, images_target)
+        _, _, outputs_src, pred_src = get_pred(model, images)
+        _, _, _, pred_tgt = get_pred(model, images_target)
 
         # discriminate
         pred_src_adv = model_dis(pred_src)
@@ -100,8 +102,8 @@ def train_adapt(config, epoch, num_epoch, epoch_iters, base_lr,
             param.requires_grad = True
 
         # get source and target predictions
-        pred_src, _, _ = get_pred(model, images)
-        pred_tgt, _, _ = get_pred(model, images_target)
+        _, _, _, pred_src = get_pred(model, images)
+        _, _, _, pred_tgt = get_pred(model, images_target)
 
         # discriminate
         pred_src_adv = model_dis(pred_src)

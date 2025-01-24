@@ -133,7 +133,7 @@ class PIDNet(nn.Module):
         
         return layer
 
-    def forward(self, x):
+    def forward(self, x, intermediate_output=False):
 
         width_output = x.shape[-1] // 8
         height_output = x.shape[-2] // 8
@@ -172,14 +172,22 @@ class PIDNet(nn.Module):
                         size=[height_output, width_output],
                         mode='bilinear', align_corners=algc)
 
+        inter = x
+
         x_ = self.final_layer(self.dfm(x_, x, x_d))
 
         if self.augment: 
             x_extra_p = self.seghead_p(temp_p)
             x_extra_d = self.seghead_d(temp_d)
-            return [x_extra_p, x_, x_extra_d]
+            if intermediate_output:
+                return [x_extra_p, x_, x_extra_d, inter]
+            else:
+                return [x_extra_p, x_, x_extra_d]
         else:
-            return x_      
+            if intermediate_output:
+                return x_, inter
+            else:
+                return x_
 
 def get_seg_model(cfg, imgnet_pretrained):
     
@@ -236,7 +244,7 @@ if __name__ == '__main__':
     model.to(device)
     iterations = None
     
-    input = torch.randn(1, 3, 1024, 2048).cuda()
+    input = torch.randn(1, 3, 1024, 2048)
     with torch.no_grad():
         for _ in range(10):
             model(input)
