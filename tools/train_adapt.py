@@ -181,7 +181,7 @@ def main():
         def forward(self, x):
             return self.layers(x)
 
-    model_dis = FCDiscriminator(config.DATASET.NUM_CLASSES)
+    model_dis = FCDiscriminator(128)
     model_dis = nn.DataParallel(model_dis, device_ids=gpus)
 
     # optimizer
