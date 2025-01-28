@@ -59,25 +59,6 @@ def main():
     # build model
     model = model = models.pidnet.get_seg_model(config, imgnet_pretrained=True)
 
-    if config.TEST.MODEL_FILE:
-        model_state_file = config.TEST.MODEL_FILE
-    else:
-        model_state_file = os.path.join(final_output_dir, 'best.pt')
-
-    logger.info('=> loading model from {}'.format(model_state_file))
-
-    pretrained_dict = torch.load(model_state_file)
-    if 'state_dict' in pretrained_dict:
-        pretrained_dict = pretrained_dict['state_dict']
-    model_dict = model.state_dict()
-    pretrained_dict = {k[6:]: v for k, v in pretrained_dict.items()
-                        if k[6:] in model_dict.keys()}
-    for k, _ in pretrained_dict.items():
-        logger.info(
-            '=> loading {} from pretrained model'.format(k))
-    model_dict.update(pretrained_dict)
-    model.load_state_dict(model_dict)
-
     model = model.cuda()
 
     model.eval()
