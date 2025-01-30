@@ -64,14 +64,12 @@ def main():
     model.eval()
     input = torch.randn(1, 3, 1024, 1024).cuda()
     macs = profile_macs(model, input)
-
     print('MACs: %d' % macs)
 
     import time
     start_time = time.time()
     output = model(input)
     end_time = time.time()
-
     print('Time: %f' % (end_time - start_time))
 
     # number of parameters

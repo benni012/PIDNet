@@ -92,13 +92,13 @@ def main():
         root=config.DATASET.ROOT,
         list_path=config.DATASET.TEST_SET,
         num_classes=config.DATASET.NUM_CLASSES,
-        multi_scale=True,
-        flip=True,
+        multi_scale=False,
+        flip=False,
         ignore_label=config.TRAIN.IGNORE_LABEL,
         base_size=config.TEST.BASE_SIZE,
         crop_size=test_size,
-        blur=True,
-        jitter=True,
+        blur=False,
+        jitter=False,
         speedy_gonzales=config.TEST.SPEEDY_GONZALES)
 
     testloader = torch.utils.data.DataLoader(
@@ -133,7 +133,8 @@ def main():
                 model,
                 image)
 
-            images.append((image[0].numpy().transpose(1, 2, 0), pred[0].numpy(), label[0].numpy()))
+            pred = pred[0]
+            images.append((image[0].numpy().transpose(1, 2, 0), pred.numpy(), label[0].numpy()))
 
         if index == 15:
             break
@@ -144,13 +145,17 @@ def main():
     figs, axes = plt.subplots(1, 3)
     img_display = axes[1].imshow(matplotlib.colors.Normalize(clip=False)(images[current_index][0]))
     # pred is (7, 1024, 1024), so we need to convert it to (1024, 1024) to display it: np.argmax(pred, axis=0)
-    img_display_2 = axes[2].imshow(np.argmax(images[current_index][1], axis=0), vmin=0, vmax=7, cmap='jet')
+    pred_label = np.argmax(images[current_index][1], axis=0)
+    pred_label[images[current_index][2] == 0] = 0
+    img_display_2 = axes[2].imshow(pred_label, vmin=0, vmax=7, cmap='jet')
     img_display_3 = axes[0].imshow(images[current_index][2], cmap='jet', vmin=0, vmax=7)
     def update_image(step):
         global current_index
         current_index = (current_index + step) % len(images)  # Cycle through images
+        pred_label = np.argmax(images[current_index][1], axis=0)
+        pred_label[images[current_index][2] == 0] = 0
         img_display.set_array(matplotlib.colors.Normalize(clip=False)(images[current_index][0]))
-        img_display_2.set_array(np.argmax(images[current_index][1], axis=0))
+        img_display_2.set_array(pred_label)
         img_display_3.set_array(images[current_index][2])
         figs.canvas.draw()
 
