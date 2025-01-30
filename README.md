@@ -1,5 +1,5 @@
 # Project 4: Real Time Domain Adaptation in Semantic Segmentation
-#### Advisor: Claudia Cuttano
+Advisor: Claudia Cuttano
 
 ## Additions
 - added support for loveda dataset
@@ -14,9 +14,11 @@
 See the [example notebook](https://colab.research.google.com/drive/1XeZl2EOh4jY5AOS-Nyy3LTs-LKU39HRB?usp=sharing) on Colab.
 
 ## Training
-```python tools/train.py --cfg configs/loveda/pidnet_small_loveda.yaml```  
-```python tools/train_dacs.py --cfg configs/loveda/pidnet_small_loveda_dacs.yaml```  
-```python tools/train_adapt.py --cfg configs/loveda/pidnet_small_loveda_adapt.yaml```
+```bash
+python tools/train.py --cfg configs/loveda/pidnet_small_loveda.yaml             # base
+python tools/train_dacs.py --cfg configs/loveda/pidnet_small_loveda_dacs.yaml   # dacs
+python tools/train_adapt.py --cfg configs/loveda/pidnet_small_loveda_adapt.yaml # adaptnet
+```
 
 ## Misc.
 
